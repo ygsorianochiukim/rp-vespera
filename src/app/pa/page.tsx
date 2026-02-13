@@ -4,7 +4,7 @@ import { useRef } from "react";
 // import CustomerReg from "./CustomerReg";
 import { Toast } from "primereact/toast";
 import { Button } from "primereact/button";
-import CustomerReg from "../buyerReg/CustomerReg";
+import CustomerReg from "../buyerReg/form/CustomerReg";
 
 export default function Form() {
   const toast = useRef<Toast>(null);

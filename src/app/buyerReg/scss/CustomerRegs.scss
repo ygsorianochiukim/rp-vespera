@@ -19,6 +19,9 @@
   color: #ffffff !important;
   transform: scale(1.03);
 }
+.font-playfair{
+  font-size: 40px !important;
+}
 
 @media (max-width: 768px) {
   .toasts {
@@ -31,4 +34,7 @@
   .forms{
     min-width: 100%;
   }
+}
+body{
+  overflow: hidden;
 }
