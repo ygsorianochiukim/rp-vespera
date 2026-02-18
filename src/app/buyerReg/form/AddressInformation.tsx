@@ -113,7 +113,7 @@ export default function Step4({
 
       <div className="gap-2 flex">
         <Button
-          className="w-1/2 bg-accent !border-none text-white rounded-lg"
+          className="w-1/2 bg-accent justify-center !border-none text-white rounded-lg"
           loading={loading}
           onClick={backstep}
         >
@@ -121,7 +121,7 @@ export default function Step4({
         </Button>
 
         <Button
-          className="w-1/2 btn-primary text-white rounded-lg"
+          className="w-1/2 btn-primary justify-center text-white rounded-lg"
           loading={loading}
           onClick={nextStep3}
         >

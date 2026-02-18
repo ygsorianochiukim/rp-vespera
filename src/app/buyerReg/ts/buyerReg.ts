@@ -5,10 +5,11 @@ import { ApiService } from "@/Domain/PA/Services/ApiService";
 import { SendOtpModel } from "@/Domain/PA/Model/sendOtpModel";
 import { OtpVerificationModel } from "@/Domain/PA/Model/OtpVerificationModel";
 import { VerifyIdModel } from "@/Domain/PA/Model/VerifyIdModel";
+import { useRouter } from "next/navigation";
 
 export function useRegister(showToast: (options: any) => void) {
   const [step, setStep] = useState<number>(1);
-
+  const router = useRouter();
   const apiservice = new ApiService();
 
   const [form, setForm] = useState({
@@ -30,14 +31,46 @@ export function useRegister(showToast: (options: any) => void) {
     birthPlace: "",
     civilStatus: "",
     nationality: "",
-    typeOfPayor: "",
+    typeOfPayor: "Individual",
     email: "",
     password: "",
     password_confirmation: "",
     hashed_password: "",
+    ip_address: "",
     id_type: "",
     valid_id: false,
   });
+
+  const resetForm = () => {
+    setForm({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      mobile: "",
+      otp: "",
+      govId: null as File | null,
+      base64: "",
+      province: "",
+      province_name: "",
+      city: "",
+      city_name: "",
+      barangay: "",
+      barangay_name: "",
+      gender: "",
+      birthDate: "",
+      birthPlace: "",
+      civilStatus: "",
+      nationality: "",
+      typeOfPayor: "Individual",
+      email: "",
+      password: "",
+      password_confirmation: "",
+      hashed_password: "",
+      ip_address: "",
+      id_type: "",
+      valid_id: false,
+    });
+  };
 
   const [otpTimer, setOtpTimer] = useState(0);
   const [otpInterval, setOtpInterval] = useState<number | null>(null);
@@ -217,12 +250,22 @@ export function useRegister(showToast: (options: any) => void) {
 
       const model: VerifyIdModel = {
         ...form,
-        province_name: provinceName,
-        city_name: cityName,
-        barangay_name: barangayName,
+        province: provinceName,
+        city: cityName,
+        barangay: barangayName,
       };
 
       const result = await apiservice.verifyId(model);
+      if (!result.valid_id) {
+        showToast({
+          severity: "error",
+          summary: "ID Verification Failed",
+          detail:
+            result.message ||
+            "The ID is not valid. Please try again with a different ID.",
+        });
+        return;
+      }
 
       showToast({
         severity: "success",
@@ -241,7 +284,6 @@ export function useRegister(showToast: (options: any) => void) {
       }));
 
       setStep(4);
-      console.log("AI verification result:", result);
     } catch (error: any) {
       showToast({
         severity: "error",
@@ -253,14 +295,63 @@ export function useRegister(showToast: (options: any) => void) {
   };
 
   const nextStep = () => {
+    // List of required fields
+    const requiredFields = ["gender", "birthDate", "civilStatus"] as const;
+
+    // Find any empty required field
+    const emptyField = requiredFields.find(
+      (field) =>
+        !form[field as keyof typeof form] ||
+        (form[field as keyof typeof form] as string).trim() === "",
+    );
+
+    if (emptyField) {
+      showToast({
+        severity: "error",
+        summary: "Missing Fields",
+        detail: `Please fill out the ${emptyField} field`,
+      });
+      return; // Stop progression
+    }
+
+    // If all required fields are filled
     showToast({
       severity: "success",
       summary: "Next Page",
       detail: "Proceeding to next step",
     });
+
     setStep(2.1);
   };
+
   const nextStep3 = () => {
+    // Required location fields
+    const requiredFields = ["province", "city", "barangay"];
+
+    // Find any empty required field
+    const emptyField = requiredFields.find(
+      (field) =>
+        !form[field as keyof typeof form] ||
+        (form[field as keyof typeof form] as string).trim() === "",
+    );
+
+    if (emptyField) {
+      // Map field names to user-friendly labels
+      const fieldLabels: Record<string, string> = {
+        province: "Province",
+        city: "City",
+        barangay: "Barangay",
+      };
+
+      showToast({
+        severity: "error",
+        summary: "Missing Fields",
+        detail: `Please select your ${fieldLabels[emptyField]}`,
+      });
+      return; // Stop progression
+    }
+
+    // All required fields selected
     showToast({
       severity: "success",
       summary: "Next Page",
@@ -270,37 +361,42 @@ export function useRegister(showToast: (options: any) => void) {
   };
 
   const nextStep5 = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/api/save-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: form.password,
-          password_confirmation: form.password_confirmation,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        showToast({
-          severity: "error",
-          summary: "Validation Error",
-          detail: errorData.errors?.password?.[0] || "Passwords do not match",
-        });
-        return;
-      }
-
-      const data = await response.json();
-
-      // Save hashed password in React state
-      setForm((prev) => ({ ...prev, hashed_password: data.hashed_password }));
-      setStep(5);
-    } catch (err) {
-      console.error(err);
+    if (!form.password || !form.password_confirmation) {
       showToast({
         severity: "error",
-        summary: "Server Error",
-        detail: "Could not hash password.",
+        summary: "Missing Fields",
+        detail: "Please enter both password and confirmation",
+      });
+      return;
+    }
+
+    if (form.password !== form.password_confirmation) {
+      showToast({
+        severity: "error",
+        summary: "Password Mismatch",
+        detail: "Password and confirmation do not match",
+      });
+      return;
+    }
+
+    try {
+      const api = new ApiService();
+      const result = await api.savePassword({
+        password: form.password,
+        password_confirmation: form.password_confirmation,
+      });
+
+      setForm((prev) => ({
+        ...prev,
+        hashed_password: result.hashed_password,
+        ip_address: result.ip_address,
+      }));
+      setStep(5);
+    } catch (error: any) {
+      showToast({
+        severity: "error",
+        summary: "Validation Error",
+        detail: error.message,
       });
     }
   };
@@ -322,6 +418,44 @@ export function useRegister(showToast: (options: any) => void) {
     setStep(2);
   };
 
+  const onsubmit = async () => {
+    try {
+      const result = await apiservice.registerUser({
+        first_name: form.firstName,
+        middle_name: form.middleName,
+        last_name: form.lastName,
+        mobile: form.mobile,
+        email: form.email,
+        password: form.hashed_password,
+        province: form.province,
+        city: form.city,
+        barangay: form.barangay,
+        gender: form.gender,
+        birth_date: form.birthDate,
+        civil_status: form.civilStatus,
+        type_of_payor: form.typeOfPayor,
+        image: form.base64,
+        id_type: form.id_type,
+        ip_address: form.ip_address,
+      });
+
+      if (result.success) {
+        showToast({
+          severity: "success",
+          summary: "Registration Successful",
+          detail: result.message || "User registered successfully",
+        });
+        resetForm();
+        router.push("https://park.renaissance.ph/login");
+      }
+    } catch (error: any) {
+      showToast({
+        severity: "error",
+        summary: "Registration Failed",
+        detail: error.message,
+      });
+    }
+  };
   // -------------------------------
   // Load Locations
   // -------------------------------
@@ -443,5 +577,6 @@ export function useRegister(showToast: (options: any) => void) {
     preview,
     verifyCard,
     nextStep5,
+    onsubmit,
   };
 }

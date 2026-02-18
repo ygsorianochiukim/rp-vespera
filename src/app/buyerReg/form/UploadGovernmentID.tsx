@@ -1,9 +1,13 @@
+import { Button } from "primereact/button";
+
 interface Step5Props {
   form: any;
   preview: string | null;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   backstep2: () => void;
   verifyCard: () => void;
+  setLoading: (loading: boolean) => void;
+  loading: boolean;
 }
 
 export default function Step5({
@@ -12,6 +16,8 @@ export default function Step5({
   handleChange,
   backstep2,
   verifyCard,
+  setLoading,
+  loading,
 }: Step5Props) {
   return (
     <div id="step3" className="space-y-4">
@@ -48,9 +54,7 @@ export default function Step5({
         )}
 
         {/* File name if no preview */}
-        {form.govId && !preview && (
-          <p className="mt-2">{form.govId.name}</p>
-        )}
+        {form.govId && !preview && <p className="mt-2">{form.govId.name}</p>}
 
         {/* Instructions */}
         <div className="text-xs text-gray-400 bg-gray-50 p-3 rounded-lg space-y-1 mt-2">
@@ -69,14 +73,23 @@ export default function Step5({
             Back
           </button>
 
-          <button
-            type="button"
-            onClick={verifyCard}
-            className="w-1/2 py-2 bg-green-600 text-white rounded-lg"
+          <Button
+            icon="pi pi-check"
+            loading={loading}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                await verifyCard();
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className={`w-1/2 py-2 rounded-lg justify-center  text-white transition-colors duration-200
+    ${form.govId ? "bg-green-600 hover:bg-green-700" : "bg-green-300 cursor-not-allowed"}`}
             disabled={!form.govId}
           >
             Verify
-          </button>
+          </Button>
         </div>
       </div>
     </div>

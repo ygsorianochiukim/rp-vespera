@@ -1,15 +1,22 @@
+import { Button } from "primereact/button";
 interface Step5Props {
   form: any;
   backstep2: () => void;
   onSubmit: () => void;
+  loading?: boolean;
+  setLoading: (loading: boolean) => void;
 }
 
-export default function Step7({ form, backstep2, onSubmit }: Step5Props) {
+export default function Step7({
+  form,
+  backstep2,
+  onSubmit,
+  setLoading,
+  loading = false,
+}: Step5Props) {
   return (
     <div id="step5" className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-700">
-        Review Details
-      </h2>
+      <h2 className="text-lg font-semibold text-gray-700">Review Details</h2>
       <p className="text-xs text-gray-500">
         Please review your information before saving.
       </p>
@@ -27,12 +34,6 @@ export default function Step7({ form, backstep2, onSubmit }: Step5Props) {
         <div className="flex justify-between">
           <span className="text-gray-500">Birth Date</span>
           <span className="font-medium text-gray-700">{form.birthDate}</span>
-        </div>
-
-        {/* Birth Place */}
-        <div className="flex justify-between">
-          <span className="text-gray-500">Birth Place</span>
-          <span className="font-medium text-gray-700">{form.birthPlace}</span>
         </div>
 
         {/* Gender */}
@@ -59,12 +60,6 @@ export default function Step7({ form, backstep2, onSubmit }: Step5Props) {
           <span className="font-medium text-gray-700">{form.mobile}</span>
         </div>
 
-        {/* Nationality */}
-        <div className="flex justify-between">
-          <span className="text-gray-500">Nationality</span>
-          <span className="font-medium text-gray-700">{form.nationality}</span>
-        </div>
-
         {/* Address */}
         <div className="flex justify-between">
           <span className="text-gray-500">Address</span>
@@ -76,7 +71,7 @@ export default function Step7({ form, backstep2, onSubmit }: Step5Props) {
         {/* ID Type */}
         <div className="flex justify-between">
           <span className="text-gray-500">ID Type Detected</span>
-          <span className="font-medium text-gray-700">{form.typeOfPayor}</span>
+          <span className="font-medium text-gray-700">{form.id_type}</span>
         </div>
 
         {/* Valid ID */}
@@ -111,13 +106,22 @@ export default function Step7({ form, backstep2, onSubmit }: Step5Props) {
           Back
         </button>
 
-        <button
+        <Button
+          icon="pi pi-check"
+          loading={loading}
           type="button"
-          onClick={onSubmit}
-          className="w-1/2 py-2 bg-green-600 text-white rounded-lg"
+          onClick={async () => {
+            setLoading(true);
+            try {
+              await onSubmit();
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="w-1/2 justify-center py-2 bg-green-600 text-white rounded-lg"
         >
           Submit
-        </button>
+        </Button>
       </div>
     </div>
   );

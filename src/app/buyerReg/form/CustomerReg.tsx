@@ -1,16 +1,17 @@
 "use client";
-
+import { ChevronLeft } from "lucide-react";
 import { useRef, useState } from "react";
 import { Toast } from "primereact/toast";
 import { Button } from "primereact/button";
 import { useRegister } from "../ts/buyerReg";
-import Step1 from "./Step1";
-import Step2 from "./Step2";
-import Step3 from "./Step3";
-import Step4 from "./Step4";
-import Step5 from "./Step5";
-import Step6 from "./Step6";
-import Step7 from "./Step7";
+import Step1 from "./DefaultStep";
+import Step2 from "./VerifyOtp";
+import Step3 from "./AdditionalInformation";
+import Step4 from "./AddressInformation";
+import Step5 from "./UploadGovernmentID";
+import Step6 from "./EmailPassword";
+import Step7 from "./ReviewDetails";
+import { url } from "inspector";
 
 export default function CustomerReg() {
   const toast = useRef<Toast>(null);
@@ -42,6 +43,7 @@ export default function CustomerReg() {
     preview,
     verifyCard,
     nextStep5,
+    onsubmit,
   } = useRegister(showToast);
 
   return (
@@ -50,10 +52,10 @@ export default function CustomerReg() {
       {/* <div className="flex flex-col h-screen items-center justify-center px-4 bgPrimary min-w-[50%] forms"> */}
       <div className="w-full max-w-xl px-6 py-10 forms">
         <a
-          href=""
+          href={"https://park.renaissance.ph/login"}
           className="absolute top-4 right-4 bg-accent text-white px-4 py-3 rounded-full shadow hover:bg-green-700 transition flex items-center justify-center"
         >
-          <i className="fa-solid fa-chevron-left text-white text-lg"></i>
+          <ChevronLeft className="w-7 h-7 text-white" />
         </a>
 
         <img
@@ -73,7 +75,7 @@ export default function CustomerReg() {
             {/* STEP 1 */}
             {step === 1 && (
               <Step1
-                form={form} 
+                form={form}
                 handleChange={handleChange}
                 nextStep={nextStep}
                 sendOTP={sendOTP}
@@ -124,6 +126,8 @@ export default function CustomerReg() {
                 handleChange={handleChange}
                 backstep2={backstep2}
                 verifyCard={verifyCard}
+                loading={loading}
+                setLoading={setLoading}
               />
             )}
             {step === 4 && (
@@ -133,16 +137,16 @@ export default function CustomerReg() {
                 nextStep5={nextStep5}
                 nextStep3={backstep2}
                 loading={loading}
+                setLoading={setLoading}
               />
             )}
             {step === 5 && (
               <Step7
                 form={form}
                 backstep2={backstep2}
-                onSubmit={() => {
-                  // Handle final submission
-                  console.log("Submitting:", form);
-                }}
+                loading={loading}
+                setLoading={setLoading}
+                onSubmit={onsubmit}
               />
             )}
           </div>
