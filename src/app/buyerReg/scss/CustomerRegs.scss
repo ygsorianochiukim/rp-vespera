@@ -12,15 +12,15 @@
 .bgAccent {
   background-color: #0a352d !important;
   transition: all 0.3s ease;
+  
 }
-
+body{
+  overflow: hidden;
+}
 .bgAccent:hover {
   background-color: #0f5d4f !important;
   color: #ffffff !important;
   transform: scale(1.03);
-}
-.font-playfair{
-  font-size: 40px !important;
 }
 
 @media (max-width: 768px) {
@@ -34,7 +34,4 @@
   .forms{
     min-width: 100%;
   }
-}
-body{
-  overflow: hidden;
 }

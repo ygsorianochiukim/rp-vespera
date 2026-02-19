@@ -10,3 +10,4 @@ export class LocationModel {
     return new LocationModel(dto.code, dto.name);
   }
 }
+
