@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PhilippinePeso } from "lucide-react";
 import { PaymentService } from "@/Domain/LSP/Services/PaymentService";
 import imageCompression from "browser-image-compression";
+import { SubmitPaymentDTO } from "@/Domain/LSP/DTO/SubmitPaymentDTO";
 
 interface Props {
   nextPage: () => void;
@@ -22,7 +23,7 @@ interface LotItem {
 export default function LSPayment({ nextPage }: Props) {
   const [lots, setLots] = useState<LotItem[]>([]);
   const [loading, setLoading] = useState(false);
-
+  const [notes, setNotes] = useState("");
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [allocationType, setAllocationType] =
     useState<"equal" | "allocate">("equal");
@@ -36,7 +37,7 @@ export default function LSPayment({ nextPage }: Props) {
 
   // ---------------- FETCH LOTS ----------------
   useEffect(() => {
-    const stored = localStorage.getItem("verifiedCustomer");
+    const stored = sessionStorage.getItem("verifiedCustomer");
     if (!stored) return;
 
     const parsed = JSON.parse(stored);
@@ -60,6 +61,8 @@ export default function LSPayment({ nextPage }: Props) {
     };
     fetchLots();
   }, []);
+
+  // ---------------- AI RECEIPT ----------------
   const handleReadReceipt = async (file: File) => {
     try {
       setAiReading(true);
@@ -95,6 +98,7 @@ export default function LSPayment({ nextPage }: Props) {
       setAiReading(false);
     }
   };
+
   const handleFileChange = async (file: File) => {
     try {
       const compressedFile = await imageCompression(file, {
@@ -140,7 +144,6 @@ export default function LSPayment({ nextPage }: Props) {
       setAllocations(newAllocations);
     }
   }, [paymentAmount, allocationType, lots]);
-
   useEffect(() => {
     if (allocationType === "allocate") {
       setAllocations({});
@@ -178,14 +181,107 @@ export default function LSPayment({ nextPage }: Props) {
     lots.length > 0 &&
     referenceNumber.length > 0;
 
-  // ---------------- UI ----------------
+  const generateAllocationDescription = () => {
+    return lots
+      .map((lot, index) => {
+        const key = `${lot.mp_i_lot_id}-${lot.date_sched_payment}-${index}`;
+        const amount = allocations[key] ?? 0;
+
+        return `${lot.lot}/${amount}`;
+      })
+      .join(",");
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+
+      if (!receiptFile) {
+        alert("Please upload receipt.");
+        return;
+      }
+
+      if (lots.length === 0) {
+        alert("No lots found.");
+        return;
+      }
+
+      const ownerId = Number(lots[0].mp_i_owner_id);
+      const purchaserId = Number((lots[0] as any).mp_t_purchagr_id);
+
+      const stored = sessionStorage.getItem("verifiedCustomer");
+      const parsed = stored ? JSON.parse(stored) : null;
+      const phoneNumber = parsed?.data?.phone;
+
+      if (!phoneNumber || !ownerId || !purchaserId) {
+        alert("Missing required customer data.");
+        return;
+      }
+
+      const formattedLots = lots
+        .map((lot, index) => {
+          const key = `${lot.mp_i_lot_id}-${lot.date_sched_payment}-${index}`;
+          const amount = allocations[key] || 0;
+
+          if (amount <= 0) return null;
+
+          return {
+            mp_i_lot_id: lot.mp_i_lot_id,
+            amount: Number(amount),
+            lot_number: lot.lot,
+          };
+        })
+        .filter(
+          (lot): lot is { mp_i_lot_id: number; amount: number; lot_number: string } => !!lot
+        );
+
+      if (formattedLots.length === 0) {
+        alert("No allocated lots.");
+        return;
+      }
+
+      const description =
+        allocationType === "allocate"
+          ? generateAllocationDescription()
+          : undefined;
+
+      const dto: SubmitPaymentDTO = {
+        phone_number: phoneNumber,
+        mp_i_owner_id: ownerId,
+        mp_t_purchagr_id: purchaserId,
+        reference_number: referenceNumber,
+        cnc_sales_incharge: "WEB",
+        attachment: receiptFile,
+        lots: formattedLots,
+        description,
+        notes,
+      };
+
+      // 🔥 MERGE IMPLEMENTATION HERE
+      const isMergedMode = allocationType === "allocate";
+
+      const result = await PaymentService.submitPayment(dto, isMergedMode);
+
+      if (result.success) {
+        alert("Payment submitted successfully!");
+        nextPage();
+      } else {
+        alert(result.message || "Submission failed.");
+      }
+
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
-      <header className="font-semibold text-white text-xl mb-2">
+      <header className="font-semibold text-white text-xl">
         Lot Information
       </header>
-
-      {/* TABLE */}
       <table className="w-full border-collapse">
         <thead className="bg-white border-b-1">
           <tr>
@@ -222,27 +318,10 @@ export default function LSPayment({ nextPage }: Props) {
             })}
         </tbody>
       </table>
-
-      {/* PAYMENT INPUT */}
-      <div className="my-4">
-        <div className="input-text-container border-gray-900 border !rounded-xl !p-3">
-          <PhilippinePeso />
-          <input
-            type="number"
-            className="input-field"
-            placeholder="Enter Payment Amount"
-            value={paymentAmount || ""}
-            onChange={(e) =>
-              setPaymentAmount(parseFloat(e.target.value) || 0)
-            }
-          />
-        </div>
-      </div>
-
-      {/* RECEIPT UPLOAD */}
+      
       <div className="my-4 bg-white p-4 rounded-xl space-y-3">
         <label className="font-semibold block">
-          Upload Receipt (AI Auto Read)
+          Upload Receipt
         </label>
 
         <input
@@ -254,15 +333,6 @@ export default function LSPayment({ nextPage }: Props) {
             handleFileChange(file);
           }}
         />
-
-        {receiptFile && (
-          <img
-            src={URL.createObjectURL(receiptFile)}
-            className="w-40 rounded-lg border"
-            alt="Receipt Preview"
-          />
-        )}
-
         {aiReading && (
           <div className="text-blue-500">
             Reading receipt using AI...
@@ -270,27 +340,138 @@ export default function LSPayment({ nextPage }: Props) {
         )}
       </div>
 
-      {/* REFERENCE FIELD */}
+      <div className="my-4 bg-white p-4 rounded-xl">
+        <div className="flex flex-row justify-between items-start my-3">
+          <label className="font-semibold block mb-2">
+            Allocation Type
+          </label>
+          <div className="text-right flex flex-col">
+            <label>Reference Number</label>
+            <input type="text" className="w-full outline-none !text-right" value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Auto-filled from receipt"/>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => setAllocationType("equal")}
+            className={`px-4 py-2 rounded-lg ${
+              allocationType === "equal"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            Split Equally
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAllocationType("allocate")}
+            className={`px-4 py-2 rounded-lg ${
+              allocationType === "allocate"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            Manual Allocation
+          </button>
+        </div>
+      </div>
+      {lots.length > 0 && paymentAmount > 0 && (
+        <div className="my-4 bg-white p-4 rounded-xl">
+          <h3 className="font-semibold mb-3">
+            Payment Allocation
+          </h3>
+          <div className="my-4">
+            <div className="flex flex-row gap-3 items-center">
+              <label>Amount: </label>
+              <div className="w-full input-text-container border-gray-900 border !rounded-md !p-1">
+                <PhilippinePeso />
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="Enter Payment Amount"
+                  value={paymentAmount || ""}
+                  onChange={(e) =>
+                    setPaymentAmount(parseFloat(e.target.value) || 0)
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <table className="w-full border">
+            <thead>
+              <tr className="border-b bg-gray-100">
+                <th className="py-2 px-2 text-left">Lot</th>
+                {lots.map((lot, index) => (
+                  <th key={index} className="py-2 px-2 text-center">
+                    {lot.lot}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <td className="py-2 px-2 font-semibold !text-sm">
+                  Allocated Amount
+                </td>
+
+                {lots.map((lot, index) => {
+                  const key = `${lot.mp_i_lot_id}-${lot.date_sched_payment}-${index}`;
+
+                  return (
+                    <td key={key} className="text-center py-2 px-2">
+                      <input
+                        type="number"
+                        className="border rounded p-1 w-14 text-center"
+                        value={allocations[key] || ""}
+                        disabled={allocationType === "equal"}
+                        onChange={(e) =>
+                          handleManualAllocation(
+                            key,
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            </tbody>
+          </table>
+          <div className="mt-4 text-sm space-y-1 flex flex-row justify-between items-center">
+            <div className="m-[unset]">Total Allocated: ₱ {totalAllocated.toFixed(2)}</div>
+            <div
+              className={`${
+                remainingBalance !== 0
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`}
+            >
+              Remaining Balance: ₱ {remainingBalance.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="my-4 bg-white p-4 rounded-xl">
         <label className="font-semibold block mb-2">
-          Reference Number
+          Notes
         </label>
-        <input
-          type="text"
+        <textarea
           className="border p-2 rounded w-full"
-          value={referenceNumber}
-          onChange={(e) => setReferenceNumber(e.target.value)}
-          placeholder="Auto-filled from receipt"
+          rows={3}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Enter notes (optional)"
         />
       </div>
-
-      {/* SUBMIT */}
       <button
-        disabled={!isValid}
-        onClick={nextPage}
+        disabled={!isValid || loading}
+        onClick={handleSubmit}
         className="btn-primary w-full bg-accent !p-4 mt-4 disabled:opacity-50"
       >
-        Submit Changes
+        {loading ? "Submitting..." : "Submit Payment"}
       </button>
     </div>
   );

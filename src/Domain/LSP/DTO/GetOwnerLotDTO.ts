@@ -4,6 +4,7 @@ export interface LotItemDTO {
   mp_i_lot_id: number;
   amt_amort: string;
   amt_spotcash: string;
+  mp_t_purchagr_id: number;
   lot: string;
   date_sched_payment: string;
 }

@@ -25,7 +25,7 @@ export default function CustomerInformation({ nextPage }: Props) {
       });
 
       // ✅ Store entire result in localStorage
-      localStorage.setItem(
+      sessionStorage.setItem(
         "verifiedCustomer",
         JSON.stringify(result)
       );
